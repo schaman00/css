@@ -1,0 +1,126 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-09"
+---
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+knitr::opts_chunk$set(
+  tidy.opts = list(width.cutoff = 60),
+  tidy = TRUE,
+  error = TRUE,
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(4561)
+```
+
+```{r}
+library(pacman)
+```
+
+```{r}
+p_load('tibble')
+p_load('dplyr')
+p_load('arules')
+```
+
+LOAD FULL DATASETS:
+
+```{r}
+trsct.df <- read.csv('/Users/sukhdevchaman/Desktop/unitn/Computational social sciences/Project p/dunnhumby_The-Complete-Journey/dunnhumby - The Complete Journey CSV/transaction_data.csv')
+
+prdct.df <- read.csv('/Users/sukhdevchaman/Desktop/unitn/Computational social sciences/Project p/dunnhumby_The-Complete-Journey/dunnhumby - The Complete Journey CSV/product.csv')
+```
+
+
+
+
+```{r}
+head(trsct.df)
+head(prdct.df)
+```
+DATA PREPROCESSING:
+
+```{r}
+trsct.df <- trsct.df %>% select(-c('household_key','QUANTITY','DAY','SALES_VALUE','STORE_ID','RETAIL_DISC','TRANS_TIME', 'WEEK_NO','COUPON_DISC','COUPON_MATCH_DISC'))
+prdct.df <- prdct.df %>% select(c('PRODUCT_ID','COMMODITY_DESC'))
+
+```
+
+
+
+```{r}
+df <- inner_join(trsct.df,prdct.df, by = 'PRODUCT_ID' )
+df <- df %>% select(-c('PRODUCT_ID'))
+head(df)
+```
+```{r}
+#head(df)
+unique(df$COMMODITY_DESC)
+#summary(df)
+```
+
+
+Find the association rules in the dataset:
+
+
+```{r}
+dfDS <- new.env()
+dfDS$data <- as(split(df$COMMODITY_DESC, df$BASKET_ID), "transactions")
+dfDS$data
+```
+```{r}
+dfAPRIORI <- new.env(parent=dfDS)
+evalq({
+  model <- apriori(data, 
+                   parameter=list(support=0.01,
+                                  confidence=0.1,
+                                  maxlen = 2
+                                  ))
+}, dfAPRIORI)
+```
+
+```{r}
+dfAPRIORI$model
+```
+
+```{r}
+inspect(sort(dfAPRIORI$model, 
+             # limit display to first 10 rules
+             by="lift"))#[1:20])
+```
+
+Filter for cereal (we find the rules for the breakfast):
+
+```{r}
+filtered_rules_breakfast_rhs <- subset(dfAPRIORI$model, rhs %in% "CONVENIENT BRKFST/WHLSM SNACKS")
+inspect(sort(filtered_rules_breakfast_rhs,
+             by='lift'))
+```
+
+```{r}
+filtered_rules_breakfast_lhs <- subset(dfAPRIORI$model, lhs %in% "CONVENIENT BRKFST/WHLSM SNACKS")
+inspect(sort(filtered_rules_breakfast_lhs,
+             by='lift'))
+
+```
+
+
+Filter for Pasta souce (we find the rules for the lunch):
+
+```{r}
+filtered_rules_lunch_rhs <- subset(dfAPRIORI$model, rhs %in% "PASTA SAUCE")
+inspect(sort(filtered_rules_lunch_rhs,
+             by='lift'))
+```
+
+```{r}
+filtered_rules_lunch_lhs <- subset(dfAPRIORI$model, lhs %in% "PASTA SAUCE")
+inspect(sort(filtered_rules_lunch_lhs,
+             by='lift'))
+```
+
+
+
+
